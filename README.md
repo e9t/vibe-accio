@@ -14,6 +14,7 @@ Watches a folder and automatically renames academic PDFs to `Author - Year - Tit
 ## Install
 
 ```bash
+brew install terminal-notifier
 pip install -r requirements.txt
 ```
 

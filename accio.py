@@ -40,50 +40,45 @@ log = logging.getLogger("accio")
 # ── Notifications ─────────────────────────────────────────────────────────────
 
 def notify(dest: Path) -> None:
-    """Show a macOS notification with an Open File button via terminal-notifier."""
-    try:
-        subprocess.run(
-            [
-                "terminal-notifier",
-                "-title", "Accio",
-                "-message", dest.name,
-                "-open", dest.as_uri(),
-                "-sender", "com.apple.Preview",
-            ],
-            check=False,
-            capture_output=True,
-        )
-    except FileNotFoundError:
-        # terminal-notifier not installed — fall back to osascript (no button)
-        subprocess.run(
-            ["osascript", "-e",
-             f'display notification "{dest.name}" with title "Accio"'],
-            check=False,
-            capture_output=True,
-        )
+    """Show a macOS notification via terminal-notifier with Open button."""
+    subprocess.run(
+        [
+            "/opt/homebrew/bin/terminal-notifier",
+            "-title", "Accio",
+            "-message", dest.name,
+            "-execute", f'open "{dest}"',
+        ],
+        check=False,
+        capture_output=True,
+    )
 
 
 def notify_error(pdf_path: Path, error: Exception) -> None:
     """Show a macOS notification for processing failures."""
-    msg = f"Failed: {pdf_path.name}"
-    try:
-        subprocess.run(
-            [
-                "terminal-notifier",
-                "-title", "Accio ⚠️",
-                "-message", msg,
-                "-subtitle", str(error)[:80],
-            ],
-            check=False,
-            capture_output=True,
-        )
-    except FileNotFoundError:
-        subprocess.run(
-            ["osascript", "-e",
-             f'display notification "{msg}" with title "Accio ⚠️"'],
-            check=False,
-            capture_output=True,
-        )
+    subprocess.run(
+        [
+            "/opt/homebrew/bin/terminal-notifier",
+            "-title", "Accio ⚠️",
+            "-message", f"Failed: {pdf_path.name}",
+            "-subtitle", str(error)[:80],
+        ],
+        check=False,
+        capture_output=True,
+    )
+
+
+def notify_duplicate(pdf_path: Path, dest: Path) -> None:
+    """Show a macOS notification for duplicate files."""
+    subprocess.run(
+        [
+            "/opt/homebrew/bin/terminal-notifier",
+            "-title", "Accio",
+            "-message", f"Already exists: {dest.name}",
+            "-subtitle", pdf_path.name,
+        ],
+        check=False,
+        capture_output=True,
+    )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -244,6 +239,7 @@ def rename_pdf(pdf_path: Path, output_dir: Path) -> None:
     dest = output_dir / dest_name
     if dest.exists():
         log.info(f"  ⏭ Skipped (already exists): {dest.name}\n")
+        notify_duplicate(pdf_path, dest)
         return
     pdf_path.rename(dest)
     log.info(f"  → {dest.name}\n")
